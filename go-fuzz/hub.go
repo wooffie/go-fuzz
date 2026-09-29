@@ -40,7 +40,8 @@ type Hub struct {
 	maxCoverMu sync.Mutex
 	maxCover   atomic.Value // []byte
 
-	initialTriage uint32
+	initialTriage     uint32
+	initialCorpusSize int
 
 	corpusCoverSize int
 	corpusSigs      map[Sig]struct{}
@@ -146,6 +147,7 @@ func (hub *Hub) connect() error {
 	hub.coordinator = c
 	hub.id = res.ID
 	hub.initialTriage = uint32(len(res.Corpus))
+	hub.initialCorpusSize = len(res.Corpus)
 	hub.triageQueue = res.Corpus
 	return nil
 }
@@ -220,8 +222,7 @@ func (hub *Hub) loop() {
 
 		case input := <-hub.newInputC:
 			if input.flush != nil {
-				ro := hub.ro.Load().(*ROData)
-				log.Printf("initial corpus triage done, cover: %v, corpus: %v", hub.corpusCoverSize, len(ro.corpus))
+				log.Printf("initial corpus triage done, loaded: %v, cover: %v", hub.initialCorpusSize, hub.corpusCoverSize)
 				close(input.flush)
 				break
 			}
