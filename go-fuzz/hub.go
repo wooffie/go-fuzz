@@ -219,6 +219,12 @@ func (hub *Hub) loop() {
 			hub.stats.restarts += s.restarts
 
 		case input := <-hub.newInputC:
+			if input.flush != nil {
+				ro := hub.ro.Load().(*ROData)
+				log.Printf("initial corpus triage done, cover: %v, corpus: %v", hub.corpusCoverSize, len(ro.corpus))
+				close(input.flush)
+				break
+			}
 			// New interesting input from workers.
 			ro := hub.ro.Load().(*ROData)
 			if !compareCover(ro.corpusCover, input.cover) {

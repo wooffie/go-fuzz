@@ -69,6 +69,7 @@ type Input struct {
 	favored         bool
 	score           int
 	runningScoreSum int
+	flush           chan struct{}
 }
 
 func workerMain() {
@@ -189,7 +190,15 @@ func (w *Worker) loop() {
 			w.triageInput(input)
 			for {
 				x := atomic.LoadUint32(&w.hub.initialTriage)
-				if x == 0 || atomic.CompareAndSwapUint32(&w.hub.initialTriage, x, x-1) {
+				if x == 0 {
+					break
+				}
+				if atomic.CompareAndSwapUint32(&w.hub.initialTriage, x, x-1) {
+					if x == 1 {
+						flush := make(chan struct{})
+						w.hub.newInputC <- Input{flush: flush}
+						<-flush
+					}
 					break
 				}
 			}
