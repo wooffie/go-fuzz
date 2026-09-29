@@ -39,6 +39,7 @@ var (
 	flagCPU       = flag.Bool("cpuprofile", false, "generate cpu profile in cpu.pprof")
 	flagLibFuzzer = flag.Bool("libfuzzer", false, "output static archive for use with libFuzzer")
 	flagBuildX    = flag.Bool("x", false, "print the commands if build fails")
+	flagVerbose   = flag.Bool("v", false, "verbose mode: always print the build log")
 	flagPreserve  = flag.String("preserve", "", "a comma-separated list of import paths not to instrument")
 	flagGoCmd     = flag.String("go", "go", `path to "go" command`)
 )
@@ -517,12 +518,11 @@ func (c *Context) buildInstrumentedBinary(blocks *[]CoverBlock, sonar *[]CoverBl
 	mainPkg := c.createFuzzMain()
 	outf := c.tempFile()
 	args := []string{"build", "-tags", makeTags()}
-	if *flagBuildX {
+	if *flagBuildX || *flagVerbose {
 		args = append(args, "-x")
-
-		if *flagWork {
-			args = append(args, "-work")
-		}
+	}
+	if *flagBuildX && *flagWork {
+		args = append(args, "-work")
 	}
 	if *flagRace {
 		args = append(args, "-race")
@@ -543,6 +543,14 @@ func (c *Context) buildInstrumentedBinary(blocks *[]CoverBlock, sonar *[]CoverBl
 		"GOPATH="+filepath.Join(c.workdir, "gopath"),
 		"GO111MODULE=off",
 	)
+	if *flagVerbose {
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			c.failf("failed to execute go build: %v", err)
+		}
+		return outf
+	}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		c.failf("failed to execute go build: %v\n%v", err, string(out))
 	}
